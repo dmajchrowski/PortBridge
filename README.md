@@ -29,7 +29,7 @@ or TCP ⇄ TCP use the multi-endpoint editor, one click away from the same form.
 | | TCP-Com | PortBridge |
 |---|---|---|
 | Serial ⇄ TCP client/server, UDP | ✓ | ✓ |
-| Virtual COM ports | ✓ (licensed ELTIMA Virtual Serial Port Driver) | ✓ (free com0com driver) |
+| Virtual COM ports | ✓ (licensed ELTIMA Virtual Serial Port Driver) | ✓ (free com0com driver — see [driver signing](#com0com-driver-signing)) |
 | Multi-client server, "first client only" / ignore-input rules | ✓ | ✓ per direction |
 | Buffer data while the network is down | ✓ (fixed ~0.5 MB) | ✓ configurable, oldest data dropped first |
 | Wait-for-timeout packetizing, max packet size | ✓ | ✓ plus **delimiter framing** (e.g. `\r\n`) |
@@ -171,12 +171,45 @@ pyserial's `rfc2217://` client (settings, data with 0xFF, DTR/RTS → DSR/DCD/CT
 front of a *physical* port reports DTR/RTS/break as they actually are after a request: a request the device refuses
 is never acknowledged.
 
-Creating a pair needs administrator rights, which the service and the desktop app both have.
-com0com 2.2.2.0 loads on Windows 11 25H2 with Secure Boot **and** Memory Integrity (HVCI) on (tested on a clean
-laptop, 2026-10-30), but Microsoft may block the 2010-era driver signature in a future update; the long-term options
-are licensing a commercial virtual-serial SDK or getting a driver attestation-signed (EV certificate). com0com's
-ports appear in Device Manager under *com0com - serial port emulators*, not under *Ports (COM & LPT)*;
-applications find them as usual.
+Creating a pair needs administrator rights, which the service and the desktop app both have. com0com's ports appear
+in Device Manager under *com0com - serial port emulators*, not under *Ports (COM & LPT)*; applications find them as
+usual.
+
+#### com0com driver signing
+
+The bundled driver is the **signed x64 build of com0com 2.2.2.0**. It was signed around 2011, by a volunteer, under
+Microsoft's old *cross-signing* program for kernel drivers. That certificate expired long ago, but Windows has kept
+trusting drivers signed this way. **There is no newer official signed com0com**: 2.2.2.0 is the project's last signed
+build, and the "signed 3.0.0.0" builds found online are unofficial and use the same old kind of signature, so they
+would not help.
+
+**Windows is phasing this out.** In March 2026 Microsoft announced it is
+[removing kernel trust for drivers signed under the cross-signed program](https://techcommunity.microsoft.com/blog/windows-itpro-blog/advancing-windows-driver-security-removing-trust-for-the-cross-signed-driver-pro/4504818),
+starting with the April 2026 update for Windows 11 24H2, 25H2 and 26H1 and Windows Server 2025, and in all later
+versions. It starts in an evaluation mode: Windows audits which drivers load and only begins blocking cross-signed
+drivers once a PC has run for a while without loading any; loading one restarts the evaluation. Microsoft keeps an
+allow list of widely used cross-signed drivers; whether com0com is on it is not known.
+
+What this means today:
+
+* On a clean Windows 11 25H2 laptop with Secure Boot and Memory Integrity (HVCI) on, com0com installed and loaded
+  normally (tested 2026-10-30). PCs that already use com0com keep restarting the evaluation, so it should keep
+  working there.
+* On a PC where Windows has already switched to blocking, com0com may not load: the bridge's virtual port reports an
+  error, Device Manager shows the *com0com* devices with a warning, and *Event Viewer → Applications and Services
+  Logs → Microsoft → Windows → CodeIntegrity → Operational* records the block.
+* Physical COM ports, USB serial adapters and all network endpoints don't use com0com and are not affected.
+
+The real fix is a virtual serial driver signed by **Microsoft** itself (through its Hardware Compatibility Program),
+which every current Windows trusts:
+
+1. **Attestation-sign a com0com build.** com0com is GPL, so a build of it can be signed and shipped together with its
+   source. This needs an EV code-signing certificate and a Microsoft Hardware Dev Center account. Attestation signing
+   covers Windows 10 and 11; Windows Server needs full WHQL (HLK) testing.
+2. **License a commercial virtual serial port driver** that is already Microsoft-signed, as TCP-Com does.
+
+Until then, organisations that manage their PCs can allow the driver with an *App Control for Business* policy. Treat
+PortBridge's virtual COM ports as "works on today's Windows, at risk on new installs of future versions".
 
 ## Security model
 
@@ -262,6 +295,8 @@ published, to `THIRD-PARTY-NOTICES.txt` next to the exe, and the setup installs 
 
 ## Ideas for later
 
+* A Microsoft-signed virtual COM port driver (attestation-signed com0com build, or a licensed driver) — see
+  [com0com driver signing](#com0com-driver-signing)
 * Code-sign `PortBridge.exe` and the setup program
 * Import TCP-Com `.T2C` files
 * Per-client TCP proxy mode (one outbound connection per inbound client)
