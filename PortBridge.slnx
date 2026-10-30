@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PortBridge.Core/PortBridge.Core.csproj" />
+    <Project Path="src/PortBridge/PortBridge.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PortBridge.Tests/PortBridge.Tests.csproj" />
+    <Project Path="tests/PortBridge.Host.Tests/PortBridge.Host.Tests.csproj" />
+  </Folder>
+</Solution>

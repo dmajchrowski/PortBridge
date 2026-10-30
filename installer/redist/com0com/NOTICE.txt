@@ -1,0 +1,17 @@
+com0com 2.2.2.0 (x64, signed)
+
+The PortBridge setup program installs this package so that PortBridge can create virtual COM ports.
+
+  setup.exe      com0com's own installer (com0com-2.2.2.0-x64-fre-signed), unchanged.
+                 SHA-256 64CF92E5B56F94C1CA14BBBBDCF0CB38B866241C6400E67B5E41C58DAEC39C12
+  ReadMe.txt     com0com's documentation, unchanged.
+  ReadMe1st.txt  Notes on the signed build, unchanged.
+
+com0com is a kernel-mode virtual serial port driver by Vyacheslav Frolov, free software distributed under the
+GNU General Public License (GPL) — see its ReadMe.txt. This build's driver files were signed by Steven William Hatchett.
+It is a separate program: PortBridge only runs its setupc.exe tool.
+
+  Project and source code: http://com0com.sourceforge.net/
+  GNU GPL:                 https://www.gnu.org/licenses/
+
+com0com is uninstalled with its own entry in Windows "Installed apps"; uninstalling PortBridge leaves it in place.
