@@ -5,6 +5,8 @@ connections, managed from a clean dashboard that works in its own desktop window
 
 ![icon](src/PortBridge/wwwroot/img/logo.svg)
 
+![The PortBridge dashboard: four bridges with live status and traffic](docs/screenshots/dashboard.png)
+
 ## What it does
 
 A **bridge** connects a *source* endpoint to one or more *targets*. Data from the source goes to every target;
@@ -23,6 +25,8 @@ data from any target goes back to the source. Endpoint types:
 TCP/IP*), with TCP-Com's *Buffer data if TCP/IP port closed*, *Wait for timeout before transmit* and *I/O options*.
 PortBridge's extras (TLS, RFC 2217, keep-alive, allow-lists, …) are under *More options*. Bridges with several targets
 or TCP ⇄ TCP use the multi-endpoint editor, one click away from the same form.
+
+![The New bridge form: serial port on the left, TCP/IP port on the right](docs/screenshots/new-bridge.png)
 
 ## Compared with TCP-Com
 
@@ -50,9 +54,19 @@ or TCP ⇄ TCP use the multi-endpoint editor, one click away from the same form.
 | REST API | — | ✓ everything the UI does |
 | Dark / light theme | — | ✓ |
 
+The **Monitor** shows a bridge's traffic live (hex and text, both directions, timestamps), its connections and modem
+lines, and can send test data; the dashboard follows the Windows light or dark theme.
+
+<p>
+  <img src="docs/screenshots/monitor.png" width="49%" alt="Live traffic monitor with hex and text">
+  <img src="docs/screenshots/dashboard-dark.png" width="49%" alt="The dashboard in the dark theme">
+</p>
+
 ## Installing
 
-Run `PortBridge-Setup-<version>.exe` (it asks for administrator rights itself — no "Run as administrator" needed).
+Download `PortBridge-Setup-<version>.exe` from [Releases](https://github.com/dmajchrowski/PortBridge/releases) and run
+it (it asks for administrator rights itself — no "Run as administrator" needed). The setup is not code-signed yet, so
+Windows SmartScreen warns first: click **More info → Run anyway**.
 It first shows the [MIT License](LICENSE), which must be accepted. Like TCP-Com's setup it then installs the program (`C:\Program Files\PortBridge`), Start-menu entries and an uninstaller
 (**Installed apps → PortBridge**), plus these options, all ticked by default:
 
@@ -65,6 +79,12 @@ It first shows the [MIT License](LICENSE), which must be accepted. Like TCP-Com'
   Windows never added its driver). Setup then adds the driver to Windows while you are at the screen: when Windows
   asks, choose **Install** (tick *Always trust software from "Steven William Hatchett"*). The service could not show
   that question later.
+
+<p>
+  <img src="docs/screenshots/smartscreen.png" width="32%" alt="SmartScreen: More info, then Run anyway">
+  <img src="docs/screenshots/setup-tasks.png" width="32%" alt="Setup tasks page with the com0com driver option">
+  <img src="docs/screenshots/driver-trust-prompt.png" width="32%" alt="Windows asks whether to install com0com's driver">
+</p>
 
 PortBridge always runs as administrator: its shortcuts and `PortBridge.exe` itself ask Windows for administrator
 approval (UAC) when they open, so the window can always sign in to the service. A standard user is asked for an
