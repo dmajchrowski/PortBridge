@@ -23,6 +23,7 @@ public sealed class Win32SerialPort : ISerialPort
     private readonly SafeFileHandle _handle;
     private readonly FileStream _stream;
     private bool _dtr, _rts;
+    private uint _lineErrors;
 
     public string DevicePath { get; }
 
@@ -161,9 +162,26 @@ public sealed class Win32SerialPort : ISerialPort
         while (true)
         {
             var n = await _stream.ReadAsync(buffer, ct).ConfigureAwait(false);
-            if (n > 0) return n;
-            ct.ThrowIfCancellationRequested();
+            if (n == 0)
+            {
+                ct.ThrowIfCancellationRequested();
+                continue;
+            }
+            // A waiting read completes with the first byte that arrives, while the rest of a burst from the UART's FIFO is
+            // usually already queued behind it. Take that once (it returns at once), so a device's reply is passed on in one
+            // piece rather than as its first byte plus the rest. Bytes still on the wire are not waited for.
+            if (n < buffer.Length && QueuedBytes() > 0)
+                n += await _stream.ReadAsync(buffer[n..], ct).ConfigureAwait(false);
+            return n;
         }
+    }
+
+    /// <summary>Bytes the driver holds for reading. ClearCommError also resets the line errors, so keep them for TakeLineErrors.</summary>
+    private uint QueuedBytes()
+    {
+        if (!ClearCommError(_handle, out var errors, out var stat)) return 0;
+        if (errors != 0) Interlocked.Or(ref _lineErrors, errors);
+        return stat.cbInQue;
     }
 
     public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct) => _stream.WriteAsync(data, ct);
@@ -209,7 +227,9 @@ public sealed class Win32SerialPort : ISerialPort
     /// <summary>Line errors since the last call (framing, parity, overrun), or null if none.</summary>
     public string? TakeLineErrors()
     {
-        if (!ClearCommError(_handle, out var e, out _) || e == 0) return null;
+        var e = Interlocked.Exchange(ref _lineErrors, 0);
+        if (ClearCommError(_handle, out var now, out _)) e |= now;
+        if (e == 0) return null;
         var parts = new List<string>();
         if ((e & CE_FRAME) != 0) parts.Add("framing");
         if ((e & CE_RXPARITY) != 0) parts.Add("parity");
