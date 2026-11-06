@@ -55,7 +55,9 @@ or TCP ⇄ TCP use the multi-endpoint editor, one click away from the same form.
 | Dark / light theme | — | ✓ |
 
 The **Monitor** shows a bridge's traffic live (hex and text, both directions, timestamps), its connections and modem
-lines, and can send test data; the dashboard follows the Windows light or dark theme.
+lines, and can send test data; the dashboard follows the Windows light or dark theme. Control characters show by
+their ASCII names in the Monitor and the traffic logs, so protocols such as TAP paging read as they are written:
+`<STX>100<CR>Hello<CR><ETX>517<CR>`, answered by `<CR><ACK><CR>`.
 
 <p>
   <img src="docs/screenshots/monitor.png" width="49%" alt="Live traffic monitor with hex and text">

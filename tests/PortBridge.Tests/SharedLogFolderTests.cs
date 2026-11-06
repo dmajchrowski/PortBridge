@@ -124,6 +124,20 @@ public class SharedLogFolderTests : IDisposable
         Assert.Single(warnings);
     }
 
+    [Theory]
+    [InlineData(TrafficLogFormat.Hex, "<< [RPP transmitter (COM2)] (3) 0D 06 0D  |<CR><ACK><CR>|")]
+    [InlineData(TrafficLogFormat.Text, "<< [RPP transmitter (COM2)] (3) <CR><ACK><CR>")]
+    public async Task Traffic_logs_show_control_characters_by_name(TrafficLogFormat format, string expected)
+    {
+        var bridge = new BridgeConfig { Name = "Pager", TrafficLog = new TrafficLogOptions { Enabled = true, Format = format } };
+        await using (var hub = new TrafficHub { LogRoot = Shared, FallbackRoot = Fallback, LogBatchDelay = TimeSpan.FromMilliseconds(50) })
+        {
+            hub.Record(bridge, TrafficDirection.Reverse, "RPP transmitter (COM2)", [0x0D, 0x06, 0x0D]);
+        }
+        var line = Read(Directory.GetFiles(Path.Combine(Shared, "traffic")).Single()).TrimEnd();
+        Assert.EndsWith(expected, line);
+    }
+
     [Fact]
     public async Task Logs_and_folders_stay_usable_while_PortBridge_writes_them()
     {

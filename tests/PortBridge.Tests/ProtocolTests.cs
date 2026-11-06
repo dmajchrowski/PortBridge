@@ -176,6 +176,17 @@ public class UtilTests
     [InlineData("\\x", new byte[] { 92, 120 })]
     public void Unescape(string text, byte[] expected) => Assert.Equal(expected, DataFormat.Unescape(text));
 
+    [Theory]
+    [InlineData(new byte[] { 0x0D, 0x06, 0x0D }, "<CR><ACK><CR>")]                                  // TAP: page accepted
+    [InlineData(new byte[] { 0x02, 0x31, 0x30, 0x30, 0x0D, 0x48, 0x69, 0x0D, 0x03, 0x35, 0x31, 0x37, 0x0D },
+        "<STX>100<CR>Hi<CR><ETX>517<CR>")]                                                              // TAP: a page block
+    [InlineData(new byte[] { 0x1B, 0x5B, 0x70, 0x0D, 0x15, 0x1E, 0x04 }, "<ESC>[p<CR><NAK><RS><EOT>")]
+    [InlineData(new byte[] { 0x00, 0x09, 0x0A, 0x11, 0x13, 0x1F }, "<NUL><TAB><LF><DC1><DC3><US>")]
+    [InlineData(new byte[] { 0x7F, 0x80, 0x9F, 0xFF }, "<DEL><80><9F><FF>")]
+    [InlineData(new byte[] { 0x5C, 0x3C, 0x20, 0x7E }, "\\< ~")]                                      // printable, as is
+    public void Readable_text_names_control_bytes(byte[] data, string expected) =>
+        Assert.Equal(expected, DataFormat.ToReadableText(data));
+
     [Fact]
     public void Hex_parsing()
     {

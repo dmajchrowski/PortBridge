@@ -24,17 +24,22 @@ function decode(b64) {
 
 const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0").toUpperCase()).join(" ");
 
-/** Text with control characters rendered as visible escapes. */
+// ASCII names for control bytes, as in the traffic logs: a TAP reply reads <CR><ACK><CR>.
+const CTL_NAMES = ["NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL", "BS", "TAB", "LF", "VT", "FF", "CR", "SO", "SI",
+  "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB", "CAN", "EM", "SUB", "ESC", "FS", "GS", "RS", "US"];
+const ctlName = (b) => (b < 0x20 ? CTL_NAMES[b] : b === 0x7f ? "DEL" : b > 0x7f ? b.toString(16).toUpperCase() : null);
+
+/** Text with control characters shown by name, e.g. <STX>, <CR>. */
 function textNodes(bytes) {
   const out = [];
   let run = "";
   const flush = () => { if (run) { out.push(run); run = ""; } };
   bytes.forEach((b, i) => {
-    if (b >= 0x20 && b < 0x7f) run += String.fromCharCode(b);
+    const name = ctlName(b);
+    if (name === null) run += String.fromCharCode(b);
     else {
       flush();
-      const esc = b === 13 ? "\\r" : b === 10 ? "\\n" : b === 9 ? "\\t" : b === 0 ? "\\0" : "\\x" + b.toString(16).padStart(2, "0").toUpperCase();
-      out.push(h("span", { class: "ctl" }, esc));
+      out.push(h("span", { class: "ctl" }, `<${name}>`));
       // Break multi-line packets visually, but not after the final newline.
       if (b === 10 && i < bytes.length - 1) out.push("\n");
     }
@@ -43,7 +48,7 @@ function textNodes(bytes) {
   return out;
 }
 
-const plainText = (bytes) => Array.from(bytes, (b) => (b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : b === 13 ? "\\r" : b === 10 ? "\\n" : "\\x" + b.toString(16).padStart(2, "0"))).join("");
+const plainText = (bytes) => Array.from(bytes, (b) => { const n = ctlName(b); return n === null ? String.fromCharCode(b) : `<${n}>`; }).join("");
 
 export function monitorPage(container, params, { navigate }) {
   const bridgeId = params[0] || store.bridges.find((b) => b.running)?.id || store.bridges[0]?.id;

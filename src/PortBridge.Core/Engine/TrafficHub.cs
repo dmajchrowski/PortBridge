@@ -153,8 +153,8 @@ internal sealed class TrafficFileLogger : IAsyncDisposable
         var arrow = rec.Direction == TrafficDirection.Forward ? ">>" : "<<";
         var tag = rec.Injected ? $"{rec.Source} (sent)" : rec.Source;
         var body = bridge.TrafficLog.Format == TrafficLogFormat.Hex
-            ? $"{DataFormat.ToHex(rec.Data)}  |{DataFormat.ToEscapedText(rec.Data)}|"
-            : DataFormat.ToEscapedText(rec.Data);
+            ? $"{DataFormat.ToHex(rec.Data)}  |{DataFormat.ToReadableText(rec.Data)}|"
+            : DataFormat.ToReadableText(rec.Data);
         return ($"{Safe(bridge.Name)}-{bridge.Id}-{rec.Time:yyyyMMdd}", Math.Max(1, bridge.TrafficLog.MaxFileMb) * 1024L * 1024L,
             $"{rec.Time:HH:mm:ss.fff} {arrow} [{tag}] ({rec.Data.Length}) {body}");
     }

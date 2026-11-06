@@ -77,21 +77,31 @@ public static class DataFormat
         return sb.ToString();
     }
 
-    /// <summary>Printable ASCII with control characters shown as escapes, for logs.</summary>
-    public static string ToEscapedText(ReadOnlySpan<byte> data)
+    private static readonly string[] ControlNames =
+    [
+        "NUL", "SOH", "STX", "ETX", "EOT", "ENQ", "ACK", "BEL", "BS", "TAB", "LF", "VT", "FF", "CR", "SO", "SI",
+        "DLE", "DC1", "DC2", "DC3", "DC4", "NAK", "SYN", "ETB", "CAN", "EM", "SUB", "ESC", "FS", "GS", "RS", "US",
+    ];
+
+    /// <summary>"CR", "ACK", "DEL"… for an ASCII control byte, the hex value (e.g. "9F") for a byte above 0x7F,
+    /// null for a printable character.</summary>
+    public static string? ControlName(byte b) => b switch
+    {
+        < 0x20 => ControlNames[b],
+        0x7F => "DEL",
+        > 0x7F => b.ToString("X2"),
+        _ => null,
+    };
+
+    /// <summary>Printable ASCII with every other byte in angle brackets, for logs: a TAP reply reads
+    /// "&lt;CR&gt;&lt;ACK&gt;&lt;CR&gt;", a byte above 0x7F "&lt;9F&gt;".</summary>
+    public static string ToReadableText(ReadOnlySpan<byte> data)
     {
         var sb = new StringBuilder(data.Length);
         foreach (var b in data)
         {
-            switch (b)
-            {
-                case 0x0D: sb.Append("\\r"); break;
-                case 0x0A: sb.Append("\\n"); break;
-                case 0x09: sb.Append("\\t"); break;
-                case (byte)'\\': sb.Append("\\\\"); break;
-                case >= 0x20 and < 0x7F: sb.Append((char)b); break;
-                default: sb.Append("\\x").Append(b.ToString("X2")); break;
-            }
+            if (ControlName(b) is { } name) sb.Append('<').Append(name).Append('>');
+            else sb.Append((char)b);
         }
         return sb.ToString();
     }
