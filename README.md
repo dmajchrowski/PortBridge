@@ -57,7 +57,9 @@ or TCP ⇄ TCP use the multi-endpoint editor, one click away from the same form.
 The **Monitor** shows a bridge's traffic live (hex and text, both directions, timestamps), its connections and modem
 lines, and can send test data; the dashboard follows the Windows light or dark theme. Control characters show by
 their ASCII names in the Monitor and the traffic logs, so protocols such as TAP paging read as they are written:
-`<STX>100<CR>Hello<CR><ETX>517<CR>`, answered by `<CR><ACK><CR>`.
+`<STX>100<CR>Hello<CR><ETX>517<CR>`, answered by `<CR><ACK><CR>`. A bridge that carries **TAP paging** (Telocator
+Alphanumeric Protocol) can be marked as such in its settings; the Monitor and the traffic log then also say what each
+message means — "Logon accepted · Go ahead: ready for pages", "Page to 100: "Hello" (checksum OK)", "Page accepted".
 
 <p>
   <img src="docs/screenshots/monitor.png" width="49%" alt="Live traffic monitor with hex and text">

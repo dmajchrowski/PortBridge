@@ -446,6 +446,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
 .log .data .hex { color: var(--text); }
 .log .data .asc { color: var(--text-3); display: block; }
 .log .data .ctl { color: var(--warn); }
+.log .data .dec { display: block; color: var(--accent-text); font-family: var(--font); font-size: 12.5px; white-space: normal; word-break: normal; }
+.log .data .dec b { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 0 5px; margin-right: 2px; border-radius: 4px; background: var(--accent-soft); }
 .log .line.inj .src::after { content: " · sent"; color: var(--accent-text); }
 .log .line.match { background: var(--warn-soft); }
 .log .note { color: var(--text-3); padding: 6px 16px; font-family: var(--font); font-size: 12.5px; }

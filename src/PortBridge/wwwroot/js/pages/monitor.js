@@ -184,14 +184,20 @@ export function monitorPage(container, params, { navigate }) {
     return prefs.dir === "all" || r.direction === prefs.dir;
   }
 
+  // A bridge set to a protocol (e.g. TAP paging) gets each record explained in words by the service.
+  const protocolLabel = () => (store.bridges.find((b) => b.id === bridgeId)?.config?.decode === "Tap" ? "TAP" : "Decoded");
+
   function lineFor(r) {
     const bytes = r.bytes || (r.bytes = decode(r.data));
     const fwd = r.direction === "Forward";
     let data;
-    if (prefs.view === "hex") data = h("span", { class: "hex" }, hex(bytes));
-    else if (prefs.view === "text") data = h("span", null, textNodes(bytes));
+    if (prefs.view === "hex") data = [h("span", { class: "hex" }, hex(bytes))];
+    else if (prefs.view === "text") data = [h("span", null, textNodes(bytes))];
     else data = [h("span", { class: "hex" }, hex(bytes)), h("span", { class: "asc" }, textNodes(bytes))];
-    const matched = search && (hex(bytes).includes(search.toUpperCase()) || plainText(bytes).toLowerCase().includes(search.toLowerCase()));
+    if (r.decoded) data.push(h("span", { class: "dec" }, h("b", null, protocolLabel()), " ", r.decoded));
+    const q = search.toLowerCase();
+    const matched = search && (hex(bytes).includes(search.toUpperCase()) || plainText(bytes).toLowerCase().includes(q) ||
+      (r.decoded || "").toLowerCase().includes(q));
     return h("div", { class: ["line", !prefs.ts && "hide-ts", r.injected && "inj", matched && "match"] },
       prefs.ts ? h("span", { class: "ts" }, fmtTime(r.time)) : null,
       h("span", { class: ["dir", fwd ? "f" : "r"], title: fwd ? "Source → targets" : "Targets → source" }, fwd ? "→" : "←"),
@@ -241,7 +247,8 @@ export function monitorPage(container, params, { navigate }) {
   function exportLog() {
     const lines = records.filter(visible).map((r) => {
       const bytes = r.bytes || decode(r.data);
-      return `${new Date(r.time).toISOString()} ${r.direction === "Forward" ? ">>" : "<<"} [${r.source}${r.injected ? " (sent)" : ""}] (${bytes.length}) ${hex(bytes)}  |${plainText(bytes)}|`;
+      return `${new Date(r.time).toISOString()} ${r.direction === "Forward" ? ">>" : "<<"} [${r.source}${r.injected ? " (sent)" : ""}] (${bytes.length}) ${hex(bytes)}  |${plainText(bytes)}|` +
+        (r.decoded ? `  ${protocolLabel()}: ${r.decoded}` : "");
     });
     const name = store.bridges.find((b) => b.id === bridgeId)?.name || "bridge";
     download(`${name.replace(/[^\w-]+/g, "_")}-traffic-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "")}.txt`, lines.join("\r\n"));

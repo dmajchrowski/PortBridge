@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using PortBridge.Core.Config;
+using PortBridge.Core.Protocols;
 using PortBridge.Core.Security;
 using PortBridge.Core.Util;
 
@@ -12,6 +13,7 @@ namespace PortBridge.Core.Engine;
 [JsonConverter(typeof(JsonStringEnumConverter<TrafficDirection>))]
 public enum TrafficDirection { Forward, Reverse }
 
+/// <param name="Decoded">What the data means in the bridge's protocol (see <see cref="BridgeConfig.Decode"/>), or null.</param>
 public sealed record TrafficRecord(
     long Seq,
     DateTimeOffset Time,
@@ -19,7 +21,8 @@ public sealed record TrafficRecord(
     TrafficDirection Direction,
     string Source,
     byte[] Data,
-    bool Injected);
+    bool Injected,
+    string? Decoded = null);
 
 /// <summary>Distributes captured traffic to live monitors, keeps a short history per bridge, and writes traffic logs.</summary>
 public sealed class TrafficHub : IAsyncDisposable
@@ -29,6 +32,7 @@ public sealed class TrafficHub : IAsyncDisposable
 
     private readonly ConcurrentDictionary<string, History> _history = new();
     private readonly ConcurrentDictionary<string, TrafficFileLogger> _loggers = new();
+    private readonly ConcurrentDictionary<string, (BridgeConfig Config, TapDecoder Decoder)> _decoders = new();
     private long _seq;
 
     /// <summary>Traffic logs go to the "traffic" folder inside these log folders (see <see cref="AppPaths.LogDir"/>).</summary>
@@ -43,7 +47,8 @@ public sealed class TrafficHub : IAsyncDisposable
 
     public void Record(BridgeConfig bridge, TrafficDirection dir, string source, byte[] data, bool injected = false)
     {
-        var rec = new TrafficRecord(Interlocked.Increment(ref _seq), DateTimeOffset.Now, bridge.Id, dir, source, data, injected);
+        var rec = new TrafficRecord(Interlocked.Increment(ref _seq), DateTimeOffset.Now, bridge.Id, dir, source, data, injected,
+            DecodeFor(bridge, dir, data));
         _history.GetOrAdd(bridge.Id, _ => new History()).Add(rec);
 
         if (bridge.TrafficLog.Enabled)
@@ -54,10 +59,32 @@ public sealed class TrafficHub : IAsyncDisposable
         try { Recorded?.Invoke(rec); } catch { /* ignore */ }
     }
 
+    /// <summary>Explains the data when the bridge is set to a protocol. A decoder lives as long as the bridge's settings:
+    /// saving the bridge (which restarts it) starts a fresh one.</summary>
+    private string? DecodeFor(BridgeConfig bridge, TrafficDirection dir, byte[] data)
+    {
+        if (bridge.Decode != ProtocolDecode.Tap)
+        {
+            _decoders.TryRemove(bridge.Id, out _);
+            return null;
+        }
+        var d = _decoders.AddOrUpdate(bridge.Id, _ => (bridge, new TapDecoder()),
+            (_, cur) => ReferenceEquals(cur.Config, bridge) ? cur : (bridge, new TapDecoder()));
+        try { return d.Decoder.Decode(dir, data); }
+        catch { return null; } // explaining traffic must never get in the way of passing it on
+    }
+
+    /// <summary>"TAP" for a bridge whose traffic is explained, as shown in front of the explanation.</summary>
+    public static string? DecodeLabel(BridgeConfig bridge) => bridge.Decode == ProtocolDecode.Tap ? "TAP" : null;
+
     public List<TrafficRecord> Recent(string bridgeId) =>
         _history.TryGetValue(bridgeId, out var h) ? h.Snapshot() : [];
 
-    public void Clear(string bridgeId) => _history.TryRemove(bridgeId, out _);
+    public void Clear(string bridgeId)
+    {
+        _history.TryRemove(bridgeId, out _);
+        _decoders.TryRemove(bridgeId, out _);
+    }
 
     public async Task CloseLoggerAsync(string bridgeId)
     {
@@ -155,6 +182,7 @@ internal sealed class TrafficFileLogger : IAsyncDisposable
         var body = bridge.TrafficLog.Format == TrafficLogFormat.Hex
             ? $"{DataFormat.ToHex(rec.Data)}  |{DataFormat.ToReadableText(rec.Data)}|"
             : DataFormat.ToReadableText(rec.Data);
+        if (rec.Decoded is { } meaning) body += $"  {TrafficHub.DecodeLabel(bridge) ?? "Decoded"}: {meaning}";
         return ($"{Safe(bridge.Name)}-{bridge.Id}-{rec.Time:yyyyMMdd}", Math.Max(1, bridge.TrafficLog.MaxFileMb) * 1024L * 1024L,
             $"{rec.Time:HH:mm:ss.fff} {arrow} [{tag}] ({rec.Data.Length}) {body}");
     }

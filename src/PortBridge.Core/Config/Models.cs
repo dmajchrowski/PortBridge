@@ -27,6 +27,10 @@ public enum TlsValidation { Strict, AcceptAny, Pinned }
 [JsonConverter(typeof(JsonStringEnumConverter<TrafficLogFormat>))]
 public enum TrafficLogFormat { Hex, Text }
 
+/// <summary>A protocol the Monitor and the traffic log explain in words. None = bytes only.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<ProtocolDecode>))]
+public enum ProtocolDecode { None, Tap }
+
 public sealed class TlsOptions
 {
     public bool Enabled { get; set; }
@@ -158,6 +162,8 @@ public sealed class BridgeConfig
     public EndpointConfig Primary { get; set; } = new();
     public List<EndpointConfig> Targets { get; set; } = [];
     public TrafficLogOptions TrafficLog { get; set; } = new();
+    /// <summary>The protocol this bridge carries, explained in the Monitor and the traffic log (e.g. TAP paging).</summary>
+    public ProtocolDecode Decode { get; set; }
 
     public IEnumerable<EndpointConfig> AllEndpoints()
     {

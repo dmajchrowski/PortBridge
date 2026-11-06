@@ -26,6 +26,8 @@ export async function openEditor(config, { isNew = false } = {}) {
   model.primary = normalize(model.primary);
   model.targets = (model.targets || []).map(normalize);
   model.trafficLog = model.trafficLog || { enabled: false, format: "Hex", maxFileMb: 20 };
+  model.decode = model.decode || "None";
+  const protocol = { tap: model.decode === "Tap" };
 
   const running = !isNew && store.bridges.find((b) => b.id === model.id)?.running;
   const errorsBox = h("div", { class: "errors", hidden: true });
@@ -52,6 +54,13 @@ export async function openEditor(config, { isNew = false } = {}) {
       field("Name", nameInput),
       field("Notes", bind(h("input", { class: "input", placeholder: "Optional — location, device, contact…" }), model, "notes", { onChange: ctx.markDirty }))),
     layoutBox,
+    h("div", { class: "panel" },
+      h("div", { class: "panel-head" }, icon("activity", 16), h("h3", null, "Protocol")),
+      h("div", { class: "panel-body" },
+        checkbox(protocol, "tap", "This bridge carries TAP paging (Telocator Alphanumeric Protocol)",
+          "The Monitor and the traffic log then say what each TAP message means: wake-up, logon, pages with pager ID and checksum, " +
+          "the transmitter's ACK / NAK / RS replies and message codes, logoff. Leave it off for other devices.",
+          () => { model.decode = protocol.tap ? "Tap" : "None"; ctx.markDirty(); }))),
     h("div", { class: "panel" },
       h("div", { class: "panel-head" }, icon("download", 16), h("h3", null, "Traffic log")),
       h("div", { class: "panel-body grid-3" },

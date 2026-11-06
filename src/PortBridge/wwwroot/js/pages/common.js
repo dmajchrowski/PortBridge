@@ -119,6 +119,7 @@ export function newBridge(name, primary, targets, extra = {}) {
     primary,
     targets,
     trafficLog: { enabled: false, format: "Hex", maxFileMb: 20 },
+    decode: "None",
     ...extra,
   };
 }

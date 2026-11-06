@@ -138,6 +138,22 @@ public class SharedLogFolderTests : IDisposable
         Assert.EndsWith(expected, line);
     }
 
+    [Theory]
+    [InlineData(ProtocolDecode.Tap, "(2) 04 0D  |<EOT><CR>|  TAP: Log off: no more pages")]
+    [InlineData(ProtocolDecode.None, "(2) 04 0D  |<EOT><CR>|")]
+    public async Task Traffic_logs_explain_TAP_only_on_bridges_set_to_TAP(ProtocolDecode decode, string expectedEnd)
+    {
+        var bridge = new BridgeConfig { Name = "Pager", Decode = decode, TrafficLog = new TrafficLogOptions { Enabled = true } };
+        TrafficRecord? recorded = null;
+        await using (var hub = new TrafficHub { LogRoot = Shared, FallbackRoot = Fallback, LogBatchDelay = TimeSpan.FromMilliseconds(50) })
+        {
+            hub.Recorded += r => recorded = r;
+            hub.Record(bridge, TrafficDirection.Forward, "Virtual COM5", [0x04, 0x0D]);
+        }
+        Assert.EndsWith(expectedEnd, Read(Directory.GetFiles(Path.Combine(Shared, "traffic")).Single()).TrimEnd());
+        Assert.Equal(decode == ProtocolDecode.Tap ? "Log off: no more pages" : null, recorded?.Decoded); // what the Monitor gets
+    }
+
     [Fact]
     public async Task Logs_and_folders_stay_usable_while_PortBridge_writes_them()
     {
