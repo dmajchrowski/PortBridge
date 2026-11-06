@@ -44,9 +44,10 @@ or TCP ⇄ TCP use the multi-endpoint editor, one click away from the same form.
 | Password protection | tray-window password | admin password, PBKDF2-hashed, brute-force lockout |
 | One port → many apps, TCP → TCP mapping | chain several instances via loopback | **one bridge with several targets** |
 | Remote management | — | **web dashboard** from any browser (opt-in, password, optional HTTPS) |
-| Live traffic monitor (hex/text, search, export) | — | ✓ |
+| Live traffic monitor (hex/text, search, export) | — | ✓ control characters by name: `<STX>`, `<CR>`, `<ACK>`… |
+| Protocol decoding | — | ✓ **TAP paging**: the Monitor and the traffic log say what each message means ([more](#tap-paging)) |
 | Send test data / saved macros | — | ✓ |
-| Traffic logging to file | — | ✓ daily files, hex or text |
+| Traffic logging to file | — | ✓ daily files per bridge, hex or text, old files deleted after N days |
 | RFC 2217 (Telnet COM Port Control) | — | ✓ server and client — works with pyserial `rfc2217://`, Moxa/Lantronix-style servers |
 | TLS encryption | — | ✓ (self-signed or your PFX; strict / pinned / any validation) |
 | Modem lines (CTS/DSR/DCD/RI) visible, DTR/RTS control | — | ✓ |
@@ -56,13 +57,12 @@ or TCP ⇄ TCP use the multi-endpoint editor, one click away from the same form.
 
 The **Monitor** shows a bridge's traffic live (hex and text, both directions, timestamps), its connections and modem
 lines, and can send test data; the dashboard follows the Windows light or dark theme. Control characters show by
-their ASCII names in the Monitor and the traffic logs, so protocols such as TAP paging read as they are written:
-`<STX>100<CR>Hello<CR><ETX>517<CR>`, answered by `<CR><ACK><CR>`. A bridge that carries **TAP paging** (Telocator
-Alphanumeric Protocol) can be marked as such in its settings; the Monitor and the traffic log then also say what each
-message means — "Logon accepted · Go ahead: ready for pages", "Page to 100: "Hello" (checksum OK)", "Page accepted".
+their ASCII names (`<STX>`, `<CR>`, `<ACK>`…) in the Monitor and the traffic logs, and for a bridge that carries
+[TAP paging](#tap-paging) both also say what each message means — "Logon accepted · Go ahead: ready for pages",
+"Page to 1001: "Room 12 bed 2" (checksum OK)", "Page accepted".
 
 <p>
-  <img src="docs/screenshots/monitor.png" width="49%" alt="Live traffic monitor with hex and text">
+  <img src="docs/screenshots/monitor.png" width="49%" alt="The Monitor decoding TAP paging: logon, pages with their checksums, ACK and NAK replies">
   <img src="docs/screenshots/dashboard-dark.png" width="49%" alt="The dashboard in the dark theme">
 </p>
 
@@ -141,15 +141,40 @@ PortBridge.exe service uninstall|start|stop|status
 * The dashboard listens on `http://localhost:8470` (changeable). Remote access is off until you set an admin
   password and enable it under **Settings → Dashboard access**.
 * Configuration lives in `%ProgramData%\PortBridge` (`config.json`, `certs\`), readable by administrators only.
-* Logs go to `C:\Users\Public\PortBridgeLogs` (`events-YYYYMMDD.log`, traffic logs in `traffic\`), which everyone
+* Logs go to `C:\Users\Public\PortBridgeLogs` (`events-YYYYMMDD.log`; traffic logs in `traffic\`, one file per bridge
+  per day, `<bridge name>-<id>-<date>.log`), which everyone
   signed in to the PC can open, edit and delete — also while PortBridge is running: nothing stays locked (traffic logs
-  are written in one-second bursts and closed in between). Because the service writes there as SYSTEM, PortBridge never
+  are written in one-second bursts and closed in between). Logs older than **Settings → Logging → Keep log files for**
+  (30 days by default) are deleted, traffic logs included. Because the service writes there as SYSTEM, PortBridge never
   follows a junction, symbolic link or hard link it finds there: while it opens a log (a few milliseconds) it checks
   and briefly holds the folders, writes only to real files inside the real folder, and deletes old logs the same way.
   If the folder (or a log file) has been replaced by a link, logs go to the administrator-only
   `%ProgramData%\PortBridge\logs` instead and a warning is shown in Events.
   Traffic logs contain the data that passes through a bridge, so anyone on the PC can read it there.
   The folder is restricted to Administrators/SYSTEM because the config can make the service run commands.
+
+### TAP paging
+
+PortBridge understands **TAP** (Telocator Alphanumeric Protocol), which paging software uses to hand pages to a
+paging transmitter or terminal. Tick **This bridge carries TAP paging** under *Protocol* in a bridge's settings, and
+the Monitor and the traffic log say what each message means (screenshot above):
+
+| Bytes | Shown as |
+|---|---|
+| `<CR>` · `ID=<CR>` | Wake-up · Logon prompt (ID=) |
+| `<ESC>PG1<CR>` | Log on: paging, category 1 (a password is never shown) |
+| `<CR><ACK><CR><ESC>[p<CR>` | Logon accepted · Go ahead: ready for pages |
+| `<STX>1001<CR>Room 12<CR><ETX>…<CR>` | Page to 1001: "Room 12" (checksum OK — or WRONG, with the right value) |
+| `<CR><ACK><CR>` · `<CR><NAK><CR>` · `<CR><RS><CR>` | Page accepted · send the block again · page refused |
+| `<EOT><CR>` · `115<CR><ESC><EOT><CR>` | Log off · 115 goodbye, disconnect |
+
+Pages spread over several blocks, replies that arrive byte by byte and the numeric message codes (110–115, 211–214,
+501, others by class) are handled too. In the traffic log the explanation follows the data:
+`<< [Transmitter] (7) 0D 06 0D 1B 5B 70 0D  |<CR><ACK><CR><ESC>[p<CR>|  TAP: Logon accepted · Go ahead: ready for pages`.
+
+To watch the TAP traffic between paging software and a transmitter on a COM port, put PortBridge in the middle:
+bridge the transmitter's real COM port to a virtual COM port and point the paging software at the virtual one.
+(A COM port can be open in only one program, so watching it from the side is not possible.)
 
 ### Virtual COM ports (com0com)
 
