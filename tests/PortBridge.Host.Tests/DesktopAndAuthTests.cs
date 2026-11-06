@@ -26,6 +26,29 @@ public class SignInTaskTests
     }
 }
 
+public class WindowSignInAgainTests
+{
+    private const string Base = "http://localhost:8470";
+
+    [Theory]
+    [InlineData("#/monitor/1836bd3e3842")]
+    [InlineData("#/settings")]
+    [InlineData("#/monitor/a%20b")]
+    public void Keeps_the_dashboard_page_the_window_was_on(string hash) =>
+        Assert.Equal($"{Base}/auth/local?token=ABC123{hash}", DesktopApp.LocalSignInUrl(Base, "ABC123", hash));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("#/")]
+    [InlineData("#/login")]            // would land on the sign-in page again
+    [InlineData("monitor")]            // not a dashboard fragment
+    [InlineData("#/x?token=evil")]     // only plain path characters are passed on
+    [InlineData("#/x\"><script>")]
+    public void Drops_anything_else(string? hash) =>
+        Assert.Equal($"{Base}/auth/local?token=ABC123", DesktopApp.LocalSignInUrl(Base, "ABC123", hash));
+}
+
 public class SignInLockoutTests
 {
     private static readonly IPAddress Ip = IPAddress.Parse("192.0.2.10");

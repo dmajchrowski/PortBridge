@@ -71,6 +71,7 @@ function renderShell() {
     class: "btn ghost icon sm", title: "Sign out",
     onClick: async () => {
       await api.post("/api/auth/logout");
+      try { sessionStorage.setItem(SIGNED_OUT_KEY, "1"); } catch { /* ignore */ }
       disconnectLive();
       showLogin();
     },
@@ -135,6 +136,7 @@ function route() {
 }
 
 async function showLogin() {
+  if (shellSigningIn) return; // several requests can fail at once; the app is already signing the window in
   cleanup?.();
   cleanup = null;
   main = null;
@@ -145,10 +147,52 @@ async function showLogin() {
     location.hash = "#/";
     return start();
   }
+  const shellCan = inDesktop && status.local && !status.requirePasswordLocally;
+  if (shellCan && autoSignInAllowed()) return shellSignIn(status);
+  showLoginPage(status, shellCan);
+}
+
+function showLoginPage(status, shellCan) {
+  clear(root);
   loginPage(root, status, () => {
     location.hash = "#/";
     start();
-  });
+  }, shellCan ? () => shellSignIn(status) : null);
+}
+
+// ---------------- desktop window sign-in ----------------
+// The desktop app signs its window in with a token only administrators can read. The session can still end while the
+// window stays open (12 hours without a request, a service restart), so the window asks the app to sign it in again
+// instead of showing a sign-in page it cannot get past. Not after "Sign out", and at most every 30 s, so a refused
+// token ends on the sign-in page instead of reloading forever.
+const RESIGN_KEY = "pb.resignin";
+const SIGNED_OUT_KEY = "pb.signedout";
+let shellSigningIn = false;
+
+function autoSignInAllowed() {
+  try {
+    if (sessionStorage.getItem(SIGNED_OUT_KEY)) return false;
+    return Date.now() - (Number(sessionStorage.getItem(RESIGN_KEY)) || 0) > 30_000;
+  } catch {
+    return false;
+  }
+}
+
+function shellSignIn(status) {
+  try {
+    sessionStorage.setItem(RESIGN_KEY, String(Date.now()));
+    sessionStorage.removeItem(SIGNED_OUT_KEY);
+  } catch { /* ignore */ }
+  shellSigningIn = true;
+  disconnectLive();
+  clear(root);
+  root.append(h("div", { class: "login-wrap" }, h("div", { class: "login" }, h("div", { class: "muted" }, "Signing in again…"))));
+  postShell({ type: "signIn", hash: parseHash().path === "login" ? "" : location.hash });
+  // The app navigates away; if it does not (an older app), fall back to the sign-in page.
+  setTimeout(() => {
+    shellSigningIn = false;
+    showLoginPage(status, true);
+  }, 5000);
 }
 
 let started = false;

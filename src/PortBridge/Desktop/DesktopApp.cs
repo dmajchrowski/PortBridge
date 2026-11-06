@@ -135,7 +135,26 @@ internal sealed class DesktopApp : ApplicationContext
     {
         if (_embedded is null || _embedded.WebError is not null) return;
         _baseUrl = _embedded.LocalUrl;
-        _form.Navigate($"{_baseUrl}/auth/local?token={_embedded.Auth.LocalToken}");
+        _form.Navigate(LocalSignInUrl(_baseUrl, _embedded.Auth.LocalToken, null));
+    }
+
+    /// <summary>The address that signs the window in with the local token. <paramref name="hash"/> is the dashboard
+    /// page to return to (e.g. "#/monitor/1836bd3e3842"); the sign-in redirect keeps it.</summary>
+    internal static string LocalSignInUrl(string baseUrl, string token, string? hash)
+    {
+        var keep = hash is { Length: > 2 } h && h.StartsWith("#/", StringComparison.Ordinal) &&
+                   !h.StartsWith("#/login", StringComparison.Ordinal) && h.All(c => char.IsAsciiLetterOrDigit(c) || "#/-_.%".Contains(c));
+        return $"{baseUrl}/auth/local?token={Uri.EscapeDataString(token)}{(keep ? hash : "")}";
+    }
+
+    /// <summary>The page lost its session while the window stayed open (12 hours without a request, a service
+    /// restart): sign the window in again with the local token, back on the page it showed.</summary>
+    private void SignInAgain(string? hash)
+    {
+        if (_baseUrl.Length == 0) return;
+        var token = ServiceMode ? AuthService.ReadLocalTokenFile() : _embedded?.Auth.LocalToken;
+        // No token: reload the sign-in page, which then offers the password (the page asks at most every 30 s).
+        _form.Navigate(token is null ? _baseUrl + "/#/login" : LocalSignInUrl(_baseUrl, token, hash));
     }
 
     private async Task ConnectToServiceAsync(int timeoutSeconds = 20)
@@ -201,7 +220,7 @@ internal sealed class DesktopApp : ApplicationContext
     {
         // The token file is readable by Administrators only, and PortBridge always runs as administrator.
         var token = AuthService.ReadLocalTokenFile();
-        _form.Navigate(token is null ? _baseUrl + "/#/login" : $"{_baseUrl}/auth/local?token={token}");
+        _form.Navigate(token is null ? _baseUrl + "/#/login" : LocalSignInUrl(_baseUrl, token, null));
     }
 
     // ---------------- messages from the dashboard ----------------
@@ -252,6 +271,10 @@ internal sealed class DesktopApp : ApplicationContext
 
             case "reconnect":
                 _ = ReconnectAsync();
+                break;
+
+            case "signIn":
+                SignInAgain(Get(msg, "hash"));
                 break;
 
             case "startWithWindows":
