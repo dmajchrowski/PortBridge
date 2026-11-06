@@ -316,6 +316,9 @@ select.input { appearance: none; padding-right: 30px; cursor: pointer;
 .ep.k-TcpServer .ico, .ep.k-TcpClient .ico, .ep.k-Udp .ico { background: var(--cyan-soft); color: var(--cyan); }
 .ep .txt { min-width: 0; display: grid; }
 .ep .t1 { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+/* A long label gets the "…", not the badges after it (e.g. "Software (COM12)" + "virtual"). */
+.ep .t1 .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ep .t1 > .dot, .ep .t1 > .badge { flex: none; }
 .ep .t2 { font-size: 11.5px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ep .count { margin-left: auto; font-size: 11px; color: var(--text-2); background: var(--panel-3); border-radius: 10px; padding: 1px 7px; flex: none; }
 

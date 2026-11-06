@@ -53,7 +53,7 @@ export function endpointChip(cfg, live) {
   return h("div", { class: `ep k-${cfg.kind}`, title: (live?.status === "Error" && live.lastError) || live?.statusText || "" },
     h("div", { class: "ico" }, icon(k.icon, 17)),
     h("div", { class: "txt" },
-      h("div", { class: "t1" }, h("span", { class: ["dot", status] }), cfg.label || epTitle(cfg), tags),
+      h("div", { class: "t1" }, h("span", { class: ["dot", status] }), h("span", { class: "name" }, cfg.label || epTitle(cfg)), tags),
       h("div", { class: "t2" }, live && live.status !== "Stopped" ? live.statusText : epSubtitle(cfg))),
     cfg.kind === "TcpServer" && live ? h("span", { class: "count", title: "Connected clients" }, sessions) : null);
 }
