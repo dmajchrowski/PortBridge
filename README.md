@@ -5,7 +5,7 @@ connections, managed from a clean dashboard that works in its own desktop window
 
 ![icon](src/PortBridge/wwwroot/img/logo.svg)
 
-![The PortBridge dashboard: four bridges with live status and traffic](docs/screenshots/dashboard.png)
+![The PortBridge dashboard: four bridges with live status and traffic, and the Monitor COM port and New bridge buttons](docs/screenshots/dashboard.png)
 
 ## What it does
 
@@ -45,6 +45,7 @@ or TCP ⇄ TCP use the multi-endpoint editor, one click away from the same form.
 | One port → many apps, TCP → TCP mapping | chain several instances via loopback | **one bridge with several targets** |
 | Remote management | — | **web dashboard** from any browser (opt-in, password, optional HTTPS) |
 | Live traffic monitor (hex/text, search, export) | — | ✓ control characters by name: `<STX>`, `<CR>`, `<ACK>`… |
+| Watch a program talking to a device on a COM port | — | ✓ **Monitor COM port**: pick the port, one click ([more](#monitor-a-com-port)) |
 | Protocol decoding | — | ✓ **TAP paging**: the Monitor and the traffic log say what each message means ([more](#tap-paging)) |
 | Send test data / saved macros | — | ✓ |
 | Traffic logging to file | — | ✓ daily files per bridge, hex or text, old files deleted after N days |
@@ -65,6 +66,30 @@ their ASCII names (`<STX>`, `<CR>`, `<ACK>`…) in the Monitor and the traffic l
   <img src="docs/screenshots/monitor.png" width="49%" alt="The Monitor decoding TAP paging: logon, pages with their checksums, ACK and NAK replies">
   <img src="docs/screenshots/dashboard-dark.png" width="49%" alt="The dashboard in the dark theme">
 </p>
+
+## Monitor a COM port
+
+To see everything a program and a device say to each other over a COM port — paging software and a paging
+transmitter, a cash register and a scale, a PLC tool and its controller — click **Monitor COM port** on the Bridges page.
+
+A COM port can be open in only one program, so it cannot be watched from the side: PortBridge has to sit in between.
+Your software opens a *virtual* COM port instead of the real one, and PortBridge passes every byte to and from the real
+port while the Monitor shows it.
+
+![The Monitor a COM port form: the COM port to monitor with its settings, and the virtual COM port for the software](docs/screenshots/monitor-com-port.png)
+
+1. **COM port to monitor** — pick the real port the device is connected to and set its speed and format
+   (9600 8N1 is filled in; it must match the device). Ports already used by another bridge are flagged.
+2. **Virtual COM port for your software** — PortBridge suggests one. If your software already uses a PortBridge
+   virtual port (marked *exists*), pick that one and nothing changes for the software; otherwise point the software at
+   the new one.
+3. **What to show** — tick **TAP paging** to have each [TAP](#tap-paging) message explained, and keep or untick the
+   traffic log.
+4. **Create & open Monitor** — PortBridge creates and starts the bridge (*Software (COM12)* → *Device (COM1)* in the
+   screenshot above, shown as "Paging transmitter" on the dashboard) and opens the Monitor.
+
+The result is an ordinary bridge: rename, edit or delete it like any other. The virtual port stays when the bridge is
+deleted, so a bridge made again later can use it and the software keeps working.
 
 ## Installing
 
@@ -172,11 +197,8 @@ Pages spread over several blocks, replies that arrive byte by byte and the numer
 501, others by class) are handled too. In the traffic log the explanation follows the data:
 `<< [Transmitter] (7) 0D 06 0D 1B 5B 70 0D  |<CR><ACK><CR><ESC>[p<CR>|  TAP: Logon accepted · Go ahead: ready for pages`.
 
-To watch the traffic between your software and a device on a COM port, click **Monitor COM port** on the Bridges
-page and pick the real port (and its speed and format). PortBridge creates and starts a bridge between that port and
-a virtual COM port, ticks TAP decoding and a traffic log if you want them, and opens the Monitor; then point your
-software at the virtual port. (A COM port can be open in only one program, so it cannot be watched from the side.
-If your software already uses a PortBridge virtual port, pick that one and nothing changes for the software.)
+To watch the TAP traffic between paging software and a transmitter on a COM port, use
+[Monitor COM port](#monitor-a-com-port) and tick **TAP paging**.
 
 ### Virtual COM ports (com0com)
 
