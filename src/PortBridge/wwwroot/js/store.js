@@ -31,8 +31,10 @@ const trafficListeners = new Map(); // bridgeId -> Set<fn>
 export function connectLive() {
   stopped = false;
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${proto}://${location.host}/api/live`);
+  const socket = ws = new WebSocket(`${proto}://${location.host}/api/live`);
+  let opened = false;
   ws.onopen = () => {
+    opened = true;
     backoff = 500;
     store.live = true;
     for (const id of trafficListeners.keys()) send({ type: "subscribe", bridgeId: id });
@@ -62,13 +64,29 @@ export function connectLive() {
       for (const [id, recs] of byBridge) for (const fn of trafficListeners.get(id) || []) fn(recs, m.dropped);
     }
   };
-  ws.onclose = () => {
+  ws.onclose = async () => {
     store.live = false;
     emit("live");
     if (stopped) return;
+    // A refused connection may mean the session is gone (e.g. the service restarted): the browser does not say why,
+    // so ask. Signed out -> the sign-in path takes over (the app's window signs itself in again).
+    if (!opened && (await signedOut())) {
+      if (ws === socket && !stopped) window.dispatchEvent(new CustomEvent("pb:unauthorized"));
+      return;
+    }
+    if (stopped || ws !== socket) return;
     setTimeout(connectLive, backoff);
     backoff = Math.min(backoff * 2, 8000);
   };
+}
+
+async function signedOut() {
+  try {
+    const r = await fetch("/api/auth/status", { credentials: "same-origin" });
+    return r.ok && (await r.json()).authenticated === false;
+  } catch {
+    return false; // not reachable: keep reconnecting
+  }
 }
 
 export function disconnectLive() {
