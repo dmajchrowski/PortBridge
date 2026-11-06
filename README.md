@@ -172,9 +172,11 @@ Pages spread over several blocks, replies that arrive byte by byte and the numer
 501, others by class) are handled too. In the traffic log the explanation follows the data:
 `<< [Transmitter] (7) 0D 06 0D 1B 5B 70 0D  |<CR><ACK><CR><ESC>[p<CR>|  TAP: Logon accepted · Go ahead: ready for pages`.
 
-To watch the TAP traffic between paging software and a transmitter on a COM port, put PortBridge in the middle:
-bridge the transmitter's real COM port to a virtual COM port and point the paging software at the virtual one.
-(A COM port can be open in only one program, so watching it from the side is not possible.)
+To watch the traffic between your software and a device on a COM port, click **Monitor COM port** on the Bridges
+page and pick the real port (and its speed and format). PortBridge creates and starts a bridge between that port and
+a virtual COM port, ticks TAP decoding and a traffic log if you want them, and opens the Monitor; then point your
+software at the virtual port. (A COM port can be open in only one program, so it cannot be watched from the side.
+If your software already uses a PortBridge virtual port, pick that one and nothing changes for the software.)
 
 ### Virtual COM ports (com0com)
 

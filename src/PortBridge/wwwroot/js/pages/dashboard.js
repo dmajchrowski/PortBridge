@@ -3,14 +3,17 @@ import * as api from "../api.js";
 import { store, onChange } from "../store.js";
 import { frame, endpointChip, STATE_LABEL } from "./common.js";
 import { openEditor } from "./editor.js";
+import { openMonitorPort } from "./monitorPort.js";
 
 export function dashboardPage(container, params, { navigate }) {
+  const monitorPort = () => openMonitorPort({ navigate });
   const f = frame(container, {
     title: "Bridges",
     subtitle: "",
     actions: [
       h("button", { class: "btn ghost", onClick: () => run(() => api.post("/api/bridges/start-all"), "All bridges started") }, icon("play", 15), "Start all"),
       h("button", { class: "btn ghost", onClick: stopAll }, icon("stop", 15), "Stop all"),
+      h("button", { class: "btn", title: "Watch the traffic between your software and a device on a COM port", onClick: monitorPort }, icon("eye", 15), "Monitor COM port"),
       h("button", { class: "btn primary", onClick: () => newBridge() }, icon("plus", 16), "New bridge"),
     ],
   });
@@ -82,7 +85,9 @@ export function dashboardPage(container, params, { navigate }) {
       h("div", { class: "art" }, icon("swap", 34)),
       h("h2", null, "Create your first bridge"),
       h("p", null, "A bridge connects a COM port — a real one, or a virtual one that applications on this PC can open — to a TCP/IP connection."),
-      h("button", { class: "btn primary", onClick: () => newBridge() }, icon("plus", 16), "New bridge")));
+      h("div", { class: "row", style: { gap: "10px", justifyContent: "center" } },
+        h("button", { class: "btn primary", onClick: () => newBridge() }, icon("plus", 16), "New bridge"),
+        h("button", { class: "btn", onClick: monitorPort }, icon("eye", 15), "Monitor a COM port"))));
   }
 
   function newBridge() {

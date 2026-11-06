@@ -437,7 +437,7 @@ function endpointEditor(ep, role, ctx) {
 const num = (obj, key, attrs = {}) => bind(h("input", { class: "input", type: "number", ...attrs }), obj, key, { type: "number" });
 const txt = (obj, key, attrs = {}) => bind(h("input", { class: "input", ...attrs }), obj, key);
 
-function lineSettings(ep, title) {
+export function lineSettings(ep, title) {
   return [
     title ? h("div", { class: "span-all section-title", style: { margin: "4px 0 0" } }, title) : null,
     field("Baud rate", bind(h("input", { class: "input", type: "number", list: "pb-bauds", min: 50 }), ep, "baudRate", { type: "number" })),
