@@ -155,6 +155,50 @@ public class SharedLogFolderTests : IDisposable
     }
 
     [Fact]
+    public async Task Traffic_logs_older_than_the_keep_days_are_deleted()
+    {
+        var traffic = Path.Combine(Shared, "traffic");
+        Directory.CreateDirectory(traffic);
+        var old = Path.Combine(traffic, "Pager-1836bd3e3842-20200101.log");
+        var recent = Path.Combine(traffic, $"Pager-1836bd3e3842-{DateTime.Now.AddDays(-2):yyyyMMdd}.log");
+        File.WriteAllText(old, "old");
+        File.SetLastWriteTime(old, DateTime.Now.AddDays(-40));
+        File.WriteAllText(recent, "recent");
+        File.SetLastWriteTime(recent, DateTime.Now.AddDays(-2));
+
+        var bridge = new BridgeConfig { Name = "Scale", TrafficLog = new TrafficLogOptions { Enabled = true } };
+        await using (var hub = new TrafficHub { LogRoot = Shared, FallbackRoot = Fallback, RetentionDays = 30, LogBatchDelay = TimeSpan.FromMilliseconds(50) })
+        {
+            hub.Record(bridge, TrafficDirection.Forward, "COM3", "12.5 kg"u8.ToArray());
+            await Wait.Until(() => !File.Exists(old), what: "the 40-day-old traffic log deleted");
+        }
+        Assert.True(File.Exists(recent), "a 2-day-old traffic log must stay");
+        Assert.Contains(Directory.GetFiles(traffic), f => Read(f).Contains("12.5 kg"));
+    }
+
+    [Fact]
+    public async Task Traffic_log_cleanup_does_not_follow_a_junction_planted_as_the_traffic_folder()
+    {
+        var elsewhere = Path.Combine(_dir, "elsewhere");
+        Directory.CreateDirectory(elsewhere);
+        var victim = Path.Combine(elsewhere, "important.log");
+        File.WriteAllText(victim, "keep");
+        File.SetLastWriteTime(victim, DateTime.Now.AddDays(-400));
+        Directory.CreateDirectory(Shared);
+        MkLink("/J", Path.Combine(Shared, "traffic"), elsewhere);
+
+        var bridge = new BridgeConfig { Name = "Scale", TrafficLog = new TrafficLogOptions { Enabled = true } };
+        await using (var hub = new TrafficHub { LogRoot = Shared, FallbackRoot = Fallback, RetentionDays = 30, Warn = _ => { }, LogBatchDelay = TimeSpan.FromMilliseconds(50) })
+        {
+            hub.Record(bridge, TrafficDirection.Forward, "COM3", "12.5 kg"u8.ToArray());
+            await Wait.Until(() => Directory.Exists(Path.Combine(Fallback, "traffic")) && Directory.GetFiles(Path.Combine(Fallback, "traffic")).Length > 0,
+                what: "traffic log in the fallback folder");
+            await Task.Delay(300); // the cleanup runs right after that write
+        }
+        Assert.True(File.Exists(victim), "nothing behind the junction may be deleted");
+    }
+
+    [Fact]
     public async Task Logs_and_folders_stay_usable_while_PortBridge_writes_them()
     {
         var bridge = new BridgeConfig { Name = "Scale", TrafficLog = new TrafficLogOptions { Enabled = true, Format = TrafficLogFormat.Text } };

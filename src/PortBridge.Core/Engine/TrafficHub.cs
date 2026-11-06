@@ -42,6 +42,8 @@ public sealed class TrafficHub : IAsyncDisposable
     public Action<string>? Warn { get; set; }
     /// <summary>How long traffic is collected before it is written in one go (the file is closed in between).</summary>
     internal TimeSpan LogBatchDelay { get; set; } = TimeSpan.FromSeconds(1);
+    /// <summary>Traffic logs last written longer ago are deleted (the "Keep log files for" setting); 0 = keep all.</summary>
+    public int RetentionDays { get; set; } = 30;
 
     public event Action<TrafficRecord>? Recorded;
 
@@ -53,7 +55,7 @@ public sealed class TrafficHub : IAsyncDisposable
 
         if (bridge.TrafficLog.Enabled)
         {
-            var logger = _loggers.GetOrAdd(bridge.Id, _ => new TrafficFileLogger(LogRoot, FallbackRoot, Warn, LogBatchDelay));
+            var logger = _loggers.GetOrAdd(bridge.Id, _ => new TrafficFileLogger(LogRoot, FallbackRoot, Warn, LogBatchDelay, () => RetentionDays));
             logger.Write(bridge, rec);
         }
         try { Recorded?.Invoke(rec); } catch { /* ignore */ }
@@ -135,17 +137,20 @@ internal sealed class TrafficFileLogger : IAsyncDisposable
     private readonly string? _fallbackRoot;
     private readonly Action<string>? _warn;
     private readonly TimeSpan _batchDelay;
+    private readonly Func<int> _retentionDays;
     private readonly CancellationTokenSource _closing = new();
     private string? _refused;
     private string? _base;
     private int _index; // part of today's log being filled: name.log, name_1.log, …
+    private DateOnly? _cleaned;
 
-    public TrafficFileLogger(string root, string? fallbackRoot, Action<string>? warn, TimeSpan batchDelay)
+    public TrafficFileLogger(string root, string? fallbackRoot, Action<string>? warn, TimeSpan batchDelay, Func<int> retentionDays)
     {
         _root = root;
         _fallbackRoot = fallbackRoot;
         _warn = warn;
         _batchDelay = batchDelay;
+        _retentionDays = retentionDays;
         _loop = Task.Run(LoopAsync);
     }
 
@@ -172,6 +177,25 @@ internal sealed class TrafficFileLogger : IAsyncDisposable
             while (_queue.Reader.TryRead(out var item)) lines.Add(Format(item.Bridge, item.Rec));
             try { await WriteBatchAsync(lines); } catch { /* disk full / permissions: the live monitor still works */ }
             lines.Clear();
+            DeleteOldLogsOncePerDay();
+        }
+    }
+
+    /// <summary>Traffic logs grow every day a bridge logs, so while one does, old ones (of every bridge) are deleted
+    /// once a day, like the event logs, through the same link-safe delete.</summary>
+    private void DeleteOldLogsOncePerDay()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        if (_cleaned == today) return;
+        _cleaned = today;
+        var days = _retentionDays();
+        if (days <= 0) return;
+        var cutoff = DateTime.Now.AddDays(-days);
+        foreach (var root in new[] { _root, _fallbackRoot })
+        {
+            if (root is null) continue;
+            try { SafeLogFiles.DeleteOlderThan(root, AppPaths.TrafficSubfolder, "*.log", cutoff); }
+            catch { /* an unsafe or missing folder: nothing is deleted there */ }
         }
     }
 

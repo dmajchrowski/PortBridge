@@ -58,13 +58,17 @@ public static class SafeLogFiles
 
     /// <summary>Deletes regular files matching <paramref name="pattern"/> last written before <paramref name="cutoff"/>.
     /// Links are left alone; nothing is deleted when the folder itself has been replaced.</summary>
-    public static void DeleteOlderThan(string logRoot, string pattern, DateTime cutoff)
+    public static void DeleteOlderThan(string logRoot, string pattern, DateTime cutoff) => DeleteOlderThan(logRoot, null, pattern, cutoff);
+
+    /// <summary>The same in a folder inside the log folder (e.g. "traffic"). A missing folder is not created.</summary>
+    public static void DeleteOlderThan(string logRoot, string? subfolder, string pattern, DateTime cutoff)
     {
-        if (!Directory.Exists(logRoot)) return;
-        var pins = PinFolders(logRoot, null);
+        var dir = subfolder is null ? logRoot : Path.Combine(logRoot, subfolder);
+        if (!Directory.Exists(dir)) return;
+        var pins = PinFolders(logRoot, subfolder);
         try
         {
-            foreach (var path in Directory.EnumerateFiles(logRoot, pattern))
+            foreach (var path in Directory.EnumerateFiles(dir, pattern))
             {
                 using var h = CreateFileW(path, DELETE | FILE_READ_ATTRIBUTES, FileShare.ReadWrite | FileShare.Delete, IntPtr.Zero,
                     OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero);

@@ -158,7 +158,7 @@ export function settingsPage(container) {
   // ---------------- logging ----------------
   const logging = section("list", "Logging",
     setting("Write the event log to disk", `One file per day in ${info.logDir || "the logs folder"} — every user of this PC can open it.`, sw("writeEventLogFile")),
-    setting("Keep log files for (days)", null,
+    setting("Keep log files for (days)", "Event logs and the bridges' traffic logs older than this are deleted.",
       bind(h("input", { class: "input", type: "number", min: 1, style: { width: "110px" } }), s, "logRetentionDays", { type: "number", onChange: markDirty })),
     inDesktop ? setting("Folders", [h("div", null, `Logs: ${info.logDir}`), h("div", null, `Data: ${info.dataDir}`)], h("div", { class: "row" },
       h("button", { class: "btn", onClick: () => postShell({ type: "openFolder", which: "logs" }) }, icon("folder", 15), "Logs"),

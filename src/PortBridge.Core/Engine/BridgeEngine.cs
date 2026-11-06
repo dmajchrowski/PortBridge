@@ -79,6 +79,7 @@ public sealed class BridgeEngine : IAsyncDisposable
     {
         Journal.WriteToFile = _config.Settings.WriteEventLogFile;
         Journal.RetentionDays = _config.Settings.LogRetentionDays;
+        Traffic.RetentionDays = _config.Settings.LogRetentionDays;
     }
 
     private void Sample()
